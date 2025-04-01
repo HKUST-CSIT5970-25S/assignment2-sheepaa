@@ -27,6 +27,7 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.log4j.Logger;
+import java.util.Iterator;
 
 /**
  * Compute the bigram count using "pairs" approach
@@ -53,6 +54,21 @@ public class BigramFrequencyPairs extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			for (int i = 0; i < words.length - 1; i++) {
+				String w1 = words[i];
+				String w2 = words[i + 1];
+	  
+				if (w1.isEmpty() || w2.isEmpty()) continue;
+	  
+				// Bigram (w1, w2)
+				BIGRAM.set(w1, w2);
+				context.write(BIGRAM, ONE);
+	  
+				// Marginal count (w1, " ")
+				BIGRAM.set(w1, " ");
+				context.write(BIGRAM, ONE);
+			}
+	  
 		}
 	}
 
@@ -64,6 +80,7 @@ public class BigramFrequencyPairs extends Configured implements Tool {
 
 		// Reuse objects.
 		private final static FloatWritable VALUE = new FloatWritable();
+		private int current_prefix_count = 0;
 
 		@Override
 		public void reduce(PairOfStrings key, Iterable<IntWritable> values,
@@ -71,6 +88,20 @@ public class BigramFrequencyPairs extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			Iterator<IntWritable> iter = values.iterator();
+			int sum = 0;
+			while (iter.hasNext()) {
+				sum += iter.next().get();
+			}
+			if(key.getRightElement().equals(" ")){
+				current_prefix_count = sum;
+				VALUE.set((float) sum);
+				context.write(key, VALUE);
+			} else{
+				float value = (float) sum / current_prefix_count;
+				VALUE.set(value);
+				context.write(key, VALUE);
+			}
 		}
 	}
 	
@@ -84,6 +115,13 @@ public class BigramFrequencyPairs extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			Iterator<IntWritable> iter = values.iterator();
+			int sum = 0;
+			while (iter.hasNext()) {
+				sum += iter.next().get();
+			}
+			SUM.set(sum);
+			context.write(key, SUM);
 		}
 	}
 

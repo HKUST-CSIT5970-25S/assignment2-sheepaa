@@ -54,6 +54,20 @@ public class BigramFrequencyStripes extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			if (words.length > 1) {
+				for (int i = 0; i < words.length - 1; i++) {
+					String w1 = words[i];
+					KEY.set(w1);
+					STRIPE.clear();
+					for (int j = i + 1; j < words.length; j++) {
+						String w2 = words[j];
+						if (w2.equals(w1)) break; // 停止连贯 bigram，防止长范围 co-occurrence
+						STRIPE.increment(w2);
+						break; // 只考虑相邻词（即 bigram）
+					}
+					context.write(KEY, STRIPE);
+				}
+			}
 		}
 	}
 
@@ -75,6 +89,32 @@ public class BigramFrequencyStripes extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			SUM_STRIPES.clear();
+
+			// 合并所有 stripes
+			for (HashMapStringIntWritable stripe : stripes) {
+				SUM_STRIPES.plus(stripe);
+			}
+		
+			// 统计当前 left word（key）的总 bigram 次数
+			int total = 0;
+			for (Map.Entry<String, Integer> entry : SUM_STRIPES.entrySet()) {
+				total += entry.getValue();
+			}
+		
+			// 输出当前 w1 的总数
+			BIGRAM.set(key.toString(), "");  // 使用空字符串表示单独的 key 行
+			FREQ.set((float) total);
+			context.write(BIGRAM, FREQ);
+		
+			// 输出每个 (w1, w2) 的概率
+			for (Map.Entry<String, Integer> entry : SUM_STRIPES.entrySet()) {
+				String w2 = entry.getKey();
+				float freq = (float) entry.getValue() / total;
+				BIGRAM.set(key.toString(), w2);
+				FREQ.set(freq);
+				context.write(BIGRAM, FREQ);
+			}
 		}
 	}
 
@@ -94,6 +134,13 @@ public class BigramFrequencyStripes extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			SUM_STRIPES.clear();
+
+    		for (HashMapStringIntWritable stripe : stripes) {
+        		SUM_STRIPES.plus(stripe); // 合并 HashMap 计数
+    		}
+
+    		context.write(key, SUM_STRIPES);
 		}
 	}
 
